@@ -22,19 +22,25 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-
+    
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
-
+    
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        // Rutas raíz y públicas - DEBE IR PRIMERO
+                        .requestMatchers("/").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers("/health").permitAll()
+                        // Rutas públicas de la API
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/artworks/**").permitAll() // Para ver obras sin login
-                        .requestMatchers("/uploads/**").permitAll() // Para acceder a imágenes
-                        .requestMatchers("/error").permitAll() // Para manejar errores
+                        .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/api/artworks/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
+                        // Todas las demás rutas requieren autenticación
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -42,10 +48,10 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
+        
         return http.build();
     }
-
+    
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -53,12 +59,12 @@ public class SecurityConfig {
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
-
+    
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
-
+    
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
