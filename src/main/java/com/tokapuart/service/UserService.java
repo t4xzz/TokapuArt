@@ -7,6 +7,7 @@ import com.tokapuart.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +15,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final FollowerRepository followerRepository;
+    private final FileStorageService fileStorageService;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getUserProfile(Long userId, Long currentUserId) {
@@ -91,6 +93,31 @@ public class UserService {
         }
 
         followerRepository.deleteByFollowerIdAndFollowingId(followerId, followingId);
+    }
+
+    @Transactional
+    public String uploadProfilePhoto(Long userId, MultipartFile photo) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        // Eliminar foto anterior si existe
+        if (user.getProfilePhotoUrl() != null && !user.getProfilePhotoUrl().isEmpty()) {
+            try {
+                fileStorageService.deleteFile(user.getProfilePhotoUrl());
+            } catch (Exception e) {
+                // Log error but continue
+                System.err.println("Error eliminando foto anterior: " + e.getMessage());
+            }
+        }
+
+        // Subir nueva foto
+        String photoUrl = fileStorageService.storeFile(photo);
+
+        // Actualizar usuario
+        user.setProfilePhotoUrl(photoUrl);
+        userRepository.save(user);
+
+        return photoUrl;
     }
 
     private UserProfileResponse mapToProfileResponse(User user, Boolean isFollowing) {

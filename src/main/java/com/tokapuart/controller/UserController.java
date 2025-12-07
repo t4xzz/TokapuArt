@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users")
@@ -104,6 +105,30 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/profile/photo")
+    public ResponseEntity<ApiResponse<String>> uploadProfilePhoto(
+            @RequestParam("photo") MultipartFile photo,
+            Authentication authentication) {
+        try {
+            Long userId = getCurrentUserId(authentication);
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Debes iniciar sesión"));
+            }
+
+            if (photo.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("No se proporcionó ninguna foto"));
+            }
+
+            String photoUrl = userService.uploadProfilePhoto(userId, photo);
+            return ResponseEntity.ok(ApiResponse.success("Foto de perfil actualizada", photoUrl));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error al subir foto: " + e.getMessage()));
         }
     }
 
